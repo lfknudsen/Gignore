@@ -1,46 +1,33 @@
-﻿module Gignore.Program
+﻿/// <summary>
+///
+/// <param name="dry"></param>
+/// </summary>
+module Gignore.Program
 
 open System
 open System.IO
 open System.Net.Http
+open Gignore.CLI
+open Gignore.Util
 
-type arguments =
-    {
-        dry: bool
-        list: bool
-        search: bool
-        compile: bool
-        entries: string list
-    }
+let list_file = "list.txt"
 
-    static member Empty =
-        {
-            dry = false
-            list = false
-            search = false
-            compile = false
-            entries = []
-        }
-
-let parseArgs (argv: string array): arguments =
-    let folder (argv: string) (args: arguments)  : arguments =
-         match argv with
-         | "-d"
-         | "--dry_run" -> { args with dry = true }
-         | "list" -> { args with list = true }
-         | "search" -> { args with search = true }
-         | "compile" -> { args with compile = true }
-         | _ -> { args with entries = argv :: args.entries }
-    Array.foldBack folder argv arguments.Empty
-
-let get_list (client: HttpClient) =
+/// <summary>
+/// Get the list of all template names from the API, and return them as an array.
+/// </summary>
+/// <param name="client"></param>
+let get_list (client: HttpClient) : Async<string array> =
     async {
-        let! response = client.GetAsync("list") |> Async.AwaitTask
-        let! content = response.Content.ReadAsStringAsync() |> Async.AwaitTask
-        return content
+        if FileInfo(list_file).Exists then
+            let! content = File.ReadAllLinesAsync(list_file) |> Async.AwaitTask
+            return content
+        else
+            let! response = client.GetAsync("list") |> Async.AwaitTask
+            let! content = response.Content.ReadAsStringAsync() |> Async.AwaitTask
+            return content |> split [|',';'\n'|]
     }
 
-let compile (client: HttpClient) (types: string list) =
+let compile (client: HttpClient) (types: string seq) =
     async {
         let parameters = String.concat "," types
         let! response = client.GetAsync(parameters) |> Async.AwaitTask
@@ -48,21 +35,72 @@ let compile (client: HttpClient) (types: string list) =
         return content
     }
 
+let search (searchTerms: string seq) (templates: string seq) : string seq =
+    templates |>
+    Seq.filter (fun (templateName: string) ->
+                Seq.exists (fun (searchTerm: string) ->
+                    templateName.Contains(searchTerm)) searchTerms)
+
+let printSearchResults (args: arguments) (results: string seq) =
+    if Seq.isEmpty results && args.verbose then
+        Console.WriteLine "Found no matching templates."
+    elif args.verbose then
+        Console.WriteLine "Found following matching templates:"
+        results |> Seq.iter Console.WriteLine
+    else
+        results |> Seq.iter Console.WriteLine
+
+let proceed (client: HttpClient) (args: arguments) =
+    async {
+        let log (msg: string) (ignored_value: 'a) :'a = log args msg ignored_value
+        match args.command with
+        | Commands.compile ->
+            let! output = compile client args.entries
+            File.WriteAllTextAsync(".gitignore", output) |> Async.AwaitTask |> ignore
+            if args.verbose then
+                Console.WriteLine "Compiled .gitignore."
+        | Commands.list ->
+            let! output = get_list client
+            let usedCache = (File.Exists list_file)
+            if not usedCache then
+                File.WriteAllLinesAsync(list_file, output) |> Async.AwaitTask |> ignore
+                if args.verbose then
+                    Console.WriteLine "Wrote each possible .gitignore template name to 'list.txt'."
+                else ()
+            elif args.verbose then
+                Console.WriteLine "A file named 'list.txt' already exists, and will be used as a cache."
+            else
+                ()
+            |> ignore
+
+            if not (Seq.isEmpty args.entries) then
+                output
+                |> search args.entries
+                |> printSearchResults args
+            else
+                ()
+
+        | Commands.search ->
+            if Seq.isEmpty args.entries then
+                if args.verbose then
+                    Console.WriteLine "Please provide search terms."
+                exit 1
+            else
+                let! output: string array = get_list client
+                output
+                |> search args.entries
+                |> printSearchResults args
+        | Commands.clean ->
+            File.Delete(list_file)
+        | Commands.add
+        | Commands.remove
+        | _ -> failwith "Not implemented yet."
+    }
+
 [<EntryPoint>]
-let main(argv: string array): int =
+let main (argv: string array) : int =
     let args = parseArgs argv
     use client = new HttpClient()
     client.BaseAddress <- Uri("https://www.toptal.com/developers/gitignore/api/")
-    if args.list then
-        let output = get_list client |> Async.RunSynchronously
-        File.WriteAllText("list.txt", output)
-    elif args.search then
-        let output = get_list client |> Async.RunSynchronously
-        let split = output.Split(',')
-        File.WriteAllLines("list.txt", split)
-        Array.filter (fun (e: string) -> List.contains e args.entries) split
-        |> Array.iter Console.WriteLine
-    elif args.compile then
-        let output = compile client args.entries |> Async.RunSynchronously
-        File.WriteAllText(".gitignore", output)
+    proceed client args |> Async.RunSynchronously
     0

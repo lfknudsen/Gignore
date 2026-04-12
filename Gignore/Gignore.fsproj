@@ -3,9 +3,12 @@
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <TargetFramework>net10.0</TargetFramework>
+        <RootNamespace>Gignore</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>
+        <Compile Include="Util.fs" />
+        <Compile Include="CLI.fs" />
         <Compile Include="Program.fs"/>
     </ItemGroup>
 
