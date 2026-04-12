@@ -68,6 +68,20 @@ type arguments =
         verbose: bool
 
         /// <summary>
+        /// If true, the `list` and `search` commands will save the list of templates to a file
+        /// on disk, and read from this file in the future if you run either of the commands.
+        /// Defaults to `true`.
+        /// Running the `clean` command will delete the cache file.
+        /// </summary>
+        useCache: bool
+
+        /// <summary>
+        /// The `list` command will print its output with the given number of columns.
+        /// Default is 3. If set to 1, it is equivalent to `-s`.
+        /// </summary>
+        columns: Option<int>
+
+        /// <summary>
         /// The specific command to be executed by this programme.
         /// </summary>
         command: Commands
@@ -84,11 +98,19 @@ type arguments =
     /// <list type="bullet|number|table">
     ///     <listheader>
     ///         <term>Field</term>
-    ///         <description>Default</description>
+    ///         <description>Default value</description>
     ///     </listheader>
     ///     <item>
     ///         <term>dry</term>
     ///         <description>false</description>
+    ///     </item>
+    ///     <item>
+    ///         <term>verbose</term>
+    ///         <description>true</description>
+    ///     </item>
+    ///     <item>
+    ///         <term>useCache</term>
+    ///         <description>true</description>
     ///     </item>
     ///     <item>
     ///         <term>command</term>
@@ -103,12 +125,47 @@ type arguments =
     static member Empty =
         { dry = false
           verbose = true
+          useCache = true
+          columns = None
           command = Commands.compile
-          entries = [] }
+          entries = []
+        }
 
 let addEntry (entry: string) (args: arguments) : arguments =
     { args with
         entries = Seq.insertAt 0 (fmt entry) args.entries }
+
+let parser (argv: string array) (args: arguments): arguments =
+    let rec aux (i: int) (args: arguments) : arguments =
+        if i >= argv.Length then
+            args
+        else
+        let arg = argv[i]
+        match arg.Trim().ToLower() with
+        | "-d"
+        | "--dry_run" -> aux (i + 1) { args with dry = true }
+        | "-q"
+        | "--quiet" -> aux (i + 1) { args with verbose = false }
+        | "-v"
+        | "--verbose" -> aux (i + 1) { args with verbose = true }
+        | "-c"
+        | "--clean" -> aux (i + 1) { args with useCache = false }
+        | "-t"
+        | "--columns" ->
+            if i >= argv.Length - 1 then
+                Console.Error.WriteLine($"The option '{arg}' was expected to have an argument.")
+                exit 1
+            else
+                let nextElement = argv[i + 1]
+                let success, value = Int32.TryParse nextElement
+                if not success || value <= 0 then
+                    Console.Error.WriteLine($"The option '{arg}' was given an argument that could not
+                                            be parsed as a positive integer: {nextElement}.")
+                    exit 1
+                else
+                    aux (i + 2) { args with columns = Some value }
+        | v -> aux (i + 1) (addEntry v args)
+    aux 0 args
 
 /// <summary>
 /// Parse command-line arguments and return an instance of the
@@ -121,16 +178,6 @@ let parseArgs (argv: string array) : arguments =
     if argv.Length = 0 then
         arguments.Empty
     else
-        let folder (argv: string) (args: arguments) : arguments =
-            match argv.Trim().ToLower() with
-            | "-d"
-            | "--dry_run" -> { args with dry = true }
-            | "-q"
-            | "--quiet" -> { args with verbose = false }
-            | "-v"
-            | "--verbose" -> { args with verbose = true }
-            | v -> addEntry v args
-
         let cmd = argv[0].ToLower()
 
         let nextIndex, arg =
@@ -138,11 +185,9 @@ let parseArgs (argv: string array) : arguments =
             |> Option.map (fun cmd -> 1, { arguments.Empty with command = cmd })
             |> Option.defaultValue (0, arguments.Empty)
 
-        Array.foldBack folder argv[nextIndex..] arg
+        parser argv[nextIndex..] arg
 
 let log (args: arguments) (msg: string) (ignored_value: 'a) =
-    if args.verbose = false then
+    if args.verbose = true then
         Console.WriteLine(msg)
-        ignored_value
-    else
-        ignored_value
+    ignored_value
