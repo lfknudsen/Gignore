@@ -1,4 +1,7 @@
-param ($o = $(throw "Output directory parameter ('-o') is required."))
+param (
+    $o = $(throw "Output directory parameter ('-o') is required. This is the
+location the actual executable (and other files) will be moved to.
+"))
 
 $subDirs = Get-ChildItem -Path $(Get-Location) -Directory
 
@@ -7,7 +10,7 @@ foreach ($dir in $subDirs) {
     if ($proj.Exists) {
         $selection = Select-String $proj -Pattern "<OutputType>Exe</OutputType>"
         if ($selection -ne $null) {
-            dotnet publish $dir -o $o
+            dotnet publish $dir -o $o -c Release
         }
     }
 }
