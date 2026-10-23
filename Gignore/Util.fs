@@ -2,8 +2,10 @@
 
 open System
 
+/// Separates columns in the list output.
 let columnPadding = " | "
 
+/// Formats strings by removing leading/trailing whitespace and converting to lower-case.
 let fmt (str: string) : string = str.Trim().ToLower()
 
 let pair (a: 'a) (b: 'b) : 'a * 'b = a, b
@@ -31,10 +33,12 @@ let letterMapper (columnWidth: int) (initial: char, templates: string array arra
     let acc = $"{string <| Char.ToUpperInvariant initial}:\n"
     Array.fold folder acc templates
 
+/// Separate the list of templates into columns.
 let makeChunks (columnCount: int) (initial: char, templates: string array)
         : char * string array array =
     initial, Array.chunkBySize columnCount templates
 
+/// Calculate the maximum amount of columns we can have in our output table of templates.
 let rec determineMaxColumnCount (padding: int) (maxConsoleWidth: int) (columnWidth: int)  =
     // Cast values; we won't truncate until end
     let maxWidth = float32 maxConsoleWidth
@@ -52,6 +56,7 @@ let rec determineMaxColumnCount (padding: int) (maxConsoleWidth: int) (columnWid
     else
         firstPassColCount - 1f |> int
 
+/// Formats the list of templates received from the server/cache into a table.
 let tabular (columns: Option<int>) (templates: string array) : string =
     let longestWordLength = Array.maxBy String.length templates |> String.length
     let maxTableWidth = Console.WindowWidth |> float |> (*) 0.60 |> int

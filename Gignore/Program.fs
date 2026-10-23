@@ -16,7 +16,7 @@ let list_file = Path.Join(CONFIG_DIR, list_filename)
 /// The domain to access; this will be the base URL of the HTTP client.
 let domain = "https://www.toptal.com/developers/gitignore/api/"
 
-
+/// Creates and initialises the HttpClient instance to be used.
 let setupClient(baseUrl: string) : HttpClient =
     let client = new HttpClient()
     client.BaseAddress <- Uri(baseUrl)
@@ -44,7 +44,10 @@ let get_list (args: arguments) (cacheFilename: string) (client: HttpClient) : As
             return list
     }
 
-let compile (client: HttpClient) (types: string seq) =
+/// Makes the HTTP request for a .gitignore file with the given types
+/// (e.g. "go", "vs", "c++", "intellij+all")
+/// Returns the contents of the .gitignore.
+let compile (client: HttpClient) (types: string seq) : string =
     async {
         let parameters = String.concat "," types
         let! response = client.GetAsync(parameters) |> Async.AwaitTask
@@ -52,17 +55,23 @@ let compile (client: HttpClient) (types: string seq) =
         return content
     }
 
+/// Searches for the given search terms in the array of available templates.
+/// Returns an array of any templates whose names contained a search term within.
 let search (searchTerms: string seq) (templates: string array) : string array =
     templates |>
     Array.filter (fun (templateName: string) ->
                 Seq.exists (fun (searchTerm: string) ->
                     templateName.Contains(searchTerm)) searchTerms)
 
+/// Writes the results of searching the list
 let printSearchResults (args: arguments) (results: string seq) =
     if args.verbose then
         Console.WriteLine $"Found {Seq.length results} matching template(s)."
     results |> Seq.iter Console.WriteLine
 
+/// The main programme function, called after arguments have been parsed and
+/// any general initialisation has been performed.
+/// A standalone function just to make the async logic a little cleaner.
 let proceed (cacheFile: string) (args: arguments) (client: HttpClient) =
     async {
         match args.command with
