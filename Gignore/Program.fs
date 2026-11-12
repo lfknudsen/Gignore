@@ -47,7 +47,7 @@ let get_list (args: arguments) (cacheFilename: string) (client: HttpClient) : As
 /// Makes the HTTP request for a .gitignore file with the given types
 /// (e.g. "go", "vs", "c++", "intellij+all")
 /// Returns the contents of the .gitignore.
-let compile (client: HttpClient) (types: string seq) : string =
+let compile (client: HttpClient) (types: string seq) : Async<string> =
     async {
         let parameters = String.concat "," types
         let! response = client.GetAsync(parameters) |> Async.AwaitTask
