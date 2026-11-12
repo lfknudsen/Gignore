@@ -69,6 +69,36 @@ let printSearchResults (args: arguments) (results: string seq) =
         Console.WriteLine $"Found {Seq.length results} matching template(s)."
     results |> Seq.iter Console.WriteLine
 
+let rec verifyTemplate (hopeful: string list) (canon: string array) : string list =
+    match hopeful with
+    | [] -> []
+    | head::tail ->
+        match Array.tryFind (fun e -> head = e) canon with
+        | None -> head :: (verifyTemplate tail canon)
+        | Some _ -> verifyTemplate tail canon
+
+let rec printList (l: 'a list) : unit =
+    match l with
+    | [] -> ()
+    | head::tail ->
+        Console.WriteLine(head)
+        printList tail
+
+let verifyTemplates (args: arguments) (cacheFilename: string) (client: HttpClient) : Async<bool> =
+    async {
+        if args.check then
+            let! canon = get_list args cacheFilename client
+            let failures = verifyTemplate args.entries canon
+            if failures.Length <> 0 then
+                Console.WriteLine("The following templates could not be found:")
+                printList failures
+                return false
+            else
+                return true
+        else
+            return true
+    }
+
 /// The main programme function, called after arguments have been parsed and
 /// any general initialisation has been performed.
 /// A standalone function just to make the async logic a little cleaner.
@@ -76,11 +106,15 @@ let proceed (cacheFile: string) (args: arguments) (client: HttpClient) =
     async {
         match args.command with
         | Commands.compile ->
-            let! content = compile client args.entries
-            let! result = File.WriteAllTextAsync(".gitignore", content) |> Async.AwaitTask
-            if args.verbose then
-                Console.WriteLine "Compiled .gitignore."
-            return result
+            let! valid = verifyTemplates args cacheFile client
+            if valid then
+                let! content = compile client args.entries
+                let! result = File.WriteAllTextAsync(".gitignore", content) |> Async.AwaitTask
+                if args.verbose then
+                    Console.WriteLine "Compiled .gitignore."
+                return result
+            else
+                exit 1
         | Commands.list ->
             let! output: string array = get_list args cacheFile client
             tabular args.columns output |> Console.WriteLine

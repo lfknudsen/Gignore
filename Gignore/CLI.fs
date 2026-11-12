@@ -90,6 +90,11 @@ type arguments =
         /// Holds the unstructured arguments; template variables or search terms.
         /// </summary>
         entries: string list
+
+        /// <summary>
+        /// Whether to check that each given template name is valid first.
+        /// </summary>
+        check: bool
     }
 
 
@@ -129,6 +134,7 @@ type arguments =
           columns = None
           command = Commands.compile
           entries = []
+          check = true
         }
 
 let addEntry (entry: string) (args: arguments) : arguments =
@@ -164,6 +170,11 @@ let parser (argv: string array) (args: arguments): arguments =
                     exit 1
                 else
                     aux (i + 2) { args with columns = Some value }
+        | "-h"
+        | "--check" ->
+            aux (i + 1) { args with check = true }
+        | "--skip-check" ->
+            aux (i + 1) { args with check = false }
         | v -> aux (i + 1) (addEntry v args)
     aux 0 args
 
