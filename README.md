@@ -3,6 +3,10 @@
 Generates a .gitignore based on a supplied list of template names.\
 The programme calls TopTal's API under the hood, which in turn uses GitHub's .gitignore templates.
 
+## Dependencies
+
+Requires .NET 10.
+
 ## Setup
 
 Execute the following command to build the programme:
@@ -11,7 +15,11 @@ Execute the following command to build the programme:
 dotnet publish src -o <output directory>
 ```
 
-Then add that directory to your PATH.
+Be aware that a .NET programme consists of an entire directory, not just an executable.
+As such, the output directory should not be one that already exists (unless 
+you're re-compiling).
+
+Add the output directory to your PATH.
 
 ## Usage
 
