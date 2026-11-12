@@ -1,4 +1,5 @@
 param (
+    [Parameter(Mandatory, ValueFromPipeline)][string]
     $o = $(throw "Output directory parameter ('-o') is required. This is the
 location the actual executable (and other files) will be moved to.
 "))
