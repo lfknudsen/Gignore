@@ -15,19 +15,26 @@ Then add that directory to your PATH.
 
 ## Usage
 
+#### Compile
 To compile a .gitignore in your current directory, execute the following command,
 adding as many template names as you wish.
 ```
-gignore <template names...>
+gignore [--skip-check] <template names...>
 ```
 
-To have the full list of available template names written to a file named `list.txt`,
+If `--skip-check`, the validity of the template names is not checked before the API is called.
+
+#### List
+
+To see the full list of available template names (you may want to use a pager like `less`),
 execute instead
 ```
 gignore list
 ```
 
-To search for template names that contain particular search terms and have any matches
+#### Search
+
+To search for any template names that contain particular search terms, and have any matches
 printed to standard output, execute
 ```
 gignore search <search terms>
