@@ -89,7 +89,7 @@ type arguments =
         /// <summary>
         /// Holds the unstructured arguments; template variables or search terms.
         /// </summary>
-        entries: string seq
+        entries: string list
     }
 
 
@@ -133,7 +133,7 @@ type arguments =
 
 let addEntry (entry: string) (args: arguments) : arguments =
     { args with
-        entries = Seq.insertAt 0 (fmt entry) args.entries }
+        entries = List.insertAt 0 (fmt entry) args.entries }
 
 let parser (argv: string array) (args: arguments): arguments =
     let rec aux (i: int) (args: arguments) : arguments =
