@@ -109,9 +109,12 @@ let proceed (cacheFile: string) (args: arguments) (client: HttpClient) =
 [<EntryPoint>]
 let main (argv: string array) : int =
     let args = parseArgs argv
-
-    domain
-    |> setupClient
-    |> proceed list_file args
-    |> Async.RunSynchronously
-    0
+    if args.command = Commands.compile && args.entries.Length = 0 then
+        Console.Error.WriteLine("Please provide template names.\nTry executing 'gignore list' to see all possible template names.")
+        1
+    else   
+        domain
+        |> setupClient
+        |> proceed list_file args
+        |> Async.RunSynchronously
+        0
